@@ -22,7 +22,7 @@ export class CreateAppIdeaTable1699030000000 implements MigrationInterface {
             type: 'text',
           },
           {
-            name: 'createdAt',
+            name: 'created_at',
             type: 'timestamp',
             default: 'CURRENT_TIMESTAMP',
           },
