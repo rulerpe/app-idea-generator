@@ -1,9 +1,12 @@
 // src/config/database.config.ts
 import { registerAs } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { AppIdea } from '../entities/app-idea.entity';
 
 export default registerAs('database', (): TypeOrmModuleOptions => {
-  if (process.env.NODE_ENV === 'production') {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (isProduction) {
     // Production configuration using Cloud SQL socket
     return {
       type: 'postgres',
@@ -11,7 +14,9 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      entities: ['dist/**/*.entity{.ts,.js}'],
+      entities: [AppIdea],
+      migrations: ['dist/migrations/*{.ts,.js}'],
+      migrationsRun: true,
       synchronize: false,
       ssl: false,
       extra: {
@@ -27,7 +32,9 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
     port: parseInt(process.env.DB_PORT || '5432'),
     username: process.env.DB_USERNAME,
     database: process.env.DB_NAME,
-    entities: ['dist/**/*.entity{.ts,.js}'],
+    entities: [AppIdea],
+    migrations: ['dist/migrations/*{.ts,.js}'],
+    migrationsRun: true,
     synchronize: process.env.NODE_ENV === 'development',
     ssl: false,
   };
