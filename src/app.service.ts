@@ -25,7 +25,7 @@ export class AppService {
     private appIdeaRepository: Repository<AppIdea>,
   ) {
     this.anthropic = new Anthropic({
-      apiKey: this.configService.get<string>('ANTHROPIC_API_KEY'),
+      apiKey: this.configService.get<string>('api.anthropic.key'),
     });
   }
 
@@ -131,7 +131,6 @@ Format each idea as a JSON object with "title" and "description" fields.`;
         await this.appIdeaRepository.save({
           title: idea.title,
           description: idea.description,
-          // subredditData: JSON.stringify(topics),
         });
       }
     } catch (error) {
@@ -147,9 +146,6 @@ Format each idea as a JSON object with "title" and "description" fields.`;
     });
 
     // Parse the subredditData back to JSON
-    return ideas.map((idea) => ({
-      ...idea,
-      subredditData: JSON.parse(idea.subredditData),
-    }));
+    return ideas;
   }
 }

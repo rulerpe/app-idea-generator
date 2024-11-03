@@ -16,9 +16,6 @@ export class AppIdea {
   @Column()
   description: string;
 
-  @Column('jsonb')
-  subredditData: string;
-
   @CreateDateColumn()
   createdAt: Date;
 }
