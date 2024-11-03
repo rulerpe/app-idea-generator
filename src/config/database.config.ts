@@ -19,12 +19,24 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
         : false,
   };
 
-  // Add password only if it's set
-  if (process.env.DB_PASSWORD) {
+  // Add password and extra configs
+  const config = {
+    ...baseConfig,
+    ...(process.env.DB_PASSWORD && { password: process.env.DB_PASSWORD }),
+  };
+
+  // Add Cloud SQL configuration for production
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.CLOUD_SQL_CONNECTION_NAME
+  ) {
     return {
-      ...baseConfig,
-      password: process.env.DB_PASSWORD,
+      ...config,
+      extra: {
+        socketPath: `/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}`,
+      },
     };
   }
-  return baseConfig;
+
+  return config;
 });

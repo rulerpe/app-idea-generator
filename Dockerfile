@@ -19,5 +19,7 @@ RUN npm ci --only=production
 
 COPY --from=builder /app/dist ./dist
 
-EXPOSE 3000
+# Use PORT environment variable provided by Cloud Run
+ENV PORT=8080
+EXPOSE ${PORT}
 CMD ["node", "dist/main"]

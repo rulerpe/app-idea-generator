@@ -67,7 +67,6 @@ jobs:
           image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }}
           env_vars: |
             NODE_ENV=production
-            PORT=3000
             DB_HOST=127.0.0.1
             DB_PORT=5432
             DB_USERNAME=${{ secrets.DB_USERNAME }}
@@ -75,3 +74,5 @@ jobs:
             DB_NAME=${{ secrets.DB_NAME }}
             CLOUD_SQL_CONNECTION_NAME=${{ secrets.CLOUD_SQL_CONNECTION_NAME }}
             ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          flags: |
+            --add-cloudsql-instances=${{ secrets.CLOUD_SQL_CONNECTION_NAME }}
