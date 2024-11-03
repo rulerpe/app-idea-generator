@@ -3,7 +3,25 @@ import { registerAs } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 export default registerAs('database', (): TypeOrmModuleOptions => {
-  const baseConfig: TypeOrmModuleOptions = {
+  if (process.env.NODE_ENV === 'production') {
+    // Production configuration using Cloud SQL socket
+    return {
+      type: 'postgres',
+      host: `/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}`,
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      entities: ['dist/**/*.entity{.ts,.js}'],
+      synchronize: false,
+      ssl: false,
+      extra: {
+        socketPath: `/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}`,
+      },
+    };
+  }
+
+  // Development/Test configuration
+  return {
     type: 'postgres',
     host: process.env.DB_HOST,
     port: parseInt(process.env.DB_PORT || '5432'),
@@ -11,32 +29,6 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
     database: process.env.DB_NAME,
     entities: ['dist/**/*.entity{.ts,.js}'],
     synchronize: process.env.NODE_ENV === 'development',
-    ssl:
-      process.env.NODE_ENV === 'production'
-        ? {
-            rejectUnauthorized: false,
-          }
-        : false,
+    ssl: false,
   };
-
-  // Add password and extra configs
-  const config = {
-    ...baseConfig,
-    ...(process.env.DB_PASSWORD && { password: process.env.DB_PASSWORD }),
-  };
-
-  // Add Cloud SQL configuration for production
-  if (
-    process.env.NODE_ENV === 'production' &&
-    process.env.CLOUD_SQL_CONNECTION_NAME
-  ) {
-    return {
-      ...config,
-      extra: {
-        socketPath: `/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}`,
-      },
-    };
-  }
-
-  return config;
 });

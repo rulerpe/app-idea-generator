@@ -5,11 +5,19 @@ export const validationSchema = Joi.object({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')
     .default('development'),
-  DB_HOST: Joi.string().required(),
-  DB_PORT: Joi.number().default(5432),
+  // DB_HOST and DB_PORT only required in non-production
+  DB_HOST: Joi.string().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.optional(),
+    otherwise: Joi.required(),
+  }),
+  DB_PORT: Joi.number().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.optional(),
+    otherwise: Joi.number().default(5432),
+  }),
   DB_USERNAME: Joi.string().required(),
   DB_NAME: Joi.string().required(),
-  // Make password required only in production
   DB_PASSWORD: Joi.string().when('NODE_ENV', {
     is: 'production',
     then: Joi.required(),
@@ -18,6 +26,7 @@ export const validationSchema = Joi.object({
   CLOUD_SQL_CONNECTION_NAME: Joi.string().when('NODE_ENV', {
     is: 'production',
     then: Joi.required(),
+    otherwise: Joi.optional(),
   }),
   ANTHROPIC_API_KEY: Joi.string().required(),
 });
