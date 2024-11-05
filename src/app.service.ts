@@ -186,10 +186,9 @@ Generate 10 unique and innovative web application ideas that solve real problems
 1. A clear title
 2. A brief description of the concept
 
-Format each idea as a JSON object with "title", "description" fields.`;
+Format each idea as a JSON object with "title", "description" fields. example [{"title": "ideatitle1", "description": "ideadescription"}]`;
 
     try {
-      console.log('prompt', prompt);
       const completion = await this.anthropic.messages.create({
         model: 'claude-3-5-sonnet-latest',
         max_tokens: 1500,
@@ -198,20 +197,7 @@ Format each idea as a JSON object with "title", "description" fields.`;
 
       const ideasText =
         completion.content[0].type === 'text' ? completion.content[0].text : '';
-      console.log('ideastext', ideasText);
-      let ideas;
-
-      try {
-        const jsonMatch = ideasText.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          ideas = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error('No JSON array found in response');
-        }
-      } catch (error) {
-        console.error('Error parsing Claude response:', error);
-        return;
-      }
+      const ideas = JSON.parse(ideasText);
 
       for (const idea of ideas) {
         // Create a new AppIdea instance
