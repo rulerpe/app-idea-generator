@@ -35,7 +35,7 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
     entities: [AppIdea],
     migrations: ['dist/migrations/*{.ts,.js}'],
     migrationsRun: true,
-    synchronize: process.env.NODE_ENV === 'development',
+    synchronize: false, // Changed from process.env.NODE_ENV === 'development' to false
     ssl: false,
   };
 });

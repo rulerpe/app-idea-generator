@@ -16,6 +16,9 @@ export class AppIdea {
   @Column()
   description: string;
 
+  @Column('text', { array: true, default: '{}' })
+  subreddits: string[];
+
   @CreateDateColumn()
   createdAt: Date;
 }

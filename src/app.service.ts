@@ -10,13 +10,74 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class AppService {
   private readonly anthropic: Anthropic;
-  private readonly popularSubreddits = [
-    // 'technology',
-    // 'programming',
-    'webdev',
-    // 'startups',
-    // 'futurology',
-  ];
+  private readonly MAX_TEXT_LENGTH = 300;
+  private readonly MAX_COMMENT_LENGTH = 200;
+
+  private readonly subredditsByGenre = {
+    technology: [
+      'homelab',
+      'selfhosted',
+      'homeautomation',
+      'mechanicalkeyboards',
+      'dataisbeautiful',
+    ],
+    business: [
+      'smallbusiness',
+      'startup',
+      'freelance',
+      'digitalnomad',
+      'entrepreneur',
+    ],
+    gaming: [
+      'patientgamers',
+      'gamedev',
+      'emulation',
+      'minipainting',
+      'boardgamedesign',
+    ],
+    education: [
+      'languagelearning',
+      'italianlearning',
+      'artfundamentals',
+      'learnprogramming',
+      'learnpython',
+    ],
+    lifestyle: [
+      'onebag',
+      'simpleliving',
+      'konmari',
+      'zerowaste',
+      'vandwellers',
+    ],
+    health: [
+      'bodyweightfitness',
+      'flexibility',
+      'posture',
+      'eatcheapandhealthy',
+      'mealprepsunday',
+    ],
+    hobbies: [
+      'woodworking',
+      'leathercraft',
+      'homebrewing',
+      'mycology',
+      'fermentation',
+    ],
+    creative: [
+      'watercolor101',
+      'songwriting',
+      'screenwriting',
+      'polymerclay',
+      'photography',
+    ],
+    outdoors: [
+      'bushcraft',
+      'urbangardening',
+      'houseplants',
+      'solotravel',
+      'japantraveltips',
+    ],
+  };
 
   constructor(
     private configService: ConfigService,
@@ -29,6 +90,32 @@ export class AppService {
     });
   }
 
+  private getRandomSubreddits(): string[] {
+    // Get all genres
+    const genres = Object.keys(this.subredditsByGenre);
+
+    // Randomly select 3 different genres
+    const selectedGenres = [];
+    while (selectedGenres.length < 3) {
+      const randomGenre = genres[Math.floor(Math.random() * genres.length)];
+      if (!selectedGenres.includes(randomGenre)) {
+        selectedGenres.push(randomGenre);
+      }
+    }
+
+    // For each selected genre, randomly select one subreddit
+    return selectedGenres.map((genre) => {
+      const subreddits = this.subredditsByGenre[genre];
+      return subreddits[Math.floor(Math.random() * subreddits.length)];
+    });
+  }
+
+  private truncateText(text: string, maxLength: number): string {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  }
+
   private async getTopComment(permalink: string): Promise<any> {
     try {
       const response = await firstValueFrom(
@@ -37,13 +124,8 @@ export class AppService {
       const comments = response.data[1].data.children;
       if (comments.length === 0) return null;
 
-      // Find the comment with the highest score
-      // const topComment = comments.reduce((prev, current) => {
-      //   return prev.data.score > current.data.score ? prev : current;
-      // });
-
       return {
-        text: comments[0].data.body,
+        text: this.truncateText(comments[0].data.body, this.MAX_COMMENT_LENGTH),
         score: comments[0].data.score,
       };
     } catch (error) {
@@ -57,8 +139,9 @@ export class AppService {
 
   async getRedditTopics(): Promise<any[]> {
     const allTopics = [];
+    const selectedSubreddits = this.getRandomSubreddits();
 
-    for (const subreddit of this.popularSubreddits) {
+    for (const subreddit of selectedSubreddits) {
       try {
         const response = await firstValueFrom(
           this.httpService.get(
@@ -72,7 +155,10 @@ export class AppService {
             allTopics.push({
               title: child.data.title,
               subreddit: child.data.subreddit,
-              selftext: child.data.selftext,
+              selftext: this.truncateText(
+                child.data.selftext,
+                this.MAX_TEXT_LENGTH,
+              ),
               score: child.data.score,
               topComment: topComment,
             });
@@ -83,11 +169,15 @@ export class AppService {
       }
     }
 
-    return allTopics.slice(0, 10);
+    // Return top 5 posts across all selected subreddits
+    return [
+      allTopics.sort((a, b) => b.score - a.score).slice(0, 5),
+      selectedSubreddits,
+    ];
   }
 
   async generateIdeas(): Promise<void> {
-    const topics = await this.getRedditTopics();
+    const [topics, selectedSubreddits] = await this.getRedditTopics();
 
     const prompt = `Based on these current trending topics from Reddit:
 ${topics.map((t) => `- ${t.title}\n ${t.selftext} (from r/${t.subreddit})\n  Top comment: "${t.topComment?.text || 'No comments'}" with ${t.topComment?.score || 0} upvotes`).join('\n')}
@@ -95,15 +185,11 @@ ${topics.map((t) => `- ${t.title}\n ${t.selftext} (from r/${t.subreddit})\n  Top
 Generate 10 unique and innovative web application ideas that solve real problems or address interesting opportunities. For each idea, provide:
 1. A clear title
 2. A brief description of the concept
-3. How it relates to or was inspired by the trending topics
 
-Format each idea as a JSON object with "title" and "description" fields.`;
-    console.log('prompt', prompt);
+Format each idea as a JSON object with "title", "description" fields.`;
+
     try {
-      console.log(
-        'process.env.ANTHROPIC_API_KEY',
-        this.configService.get<string>('ANTHROPIC_API_KEY'),
-      );
+      console.log('prompt', prompt);
       const completion = await this.anthropic.messages.create({
         model: 'claude-3-5-sonnet-latest',
         max_tokens: 1500,
@@ -112,7 +198,7 @@ Format each idea as a JSON object with "title" and "description" fields.`;
 
       const ideasText =
         completion.content[0].type === 'text' ? completion.content[0].text : '';
-
+      console.log('ideastext', ideasText);
       let ideas;
 
       try {
@@ -128,13 +214,18 @@ Format each idea as a JSON object with "title" and "description" fields.`;
       }
 
       for (const idea of ideas) {
-        await this.appIdeaRepository.save({
-          title: idea.title,
-          description: idea.description,
-        });
+        // Create a new AppIdea instance
+        const appIdea = new AppIdea();
+        appIdea.title = idea.title;
+        appIdea.description = idea.description;
+        appIdea.subreddits = selectedSubreddits;
+
+        // Save the entity
+        await this.appIdeaRepository.save(appIdea);
       }
     } catch (error) {
       console.error('Error generating ideas:', error);
+      throw error;
     }
   }
 
@@ -145,7 +236,6 @@ Format each idea as a JSON object with "title" and "description" fields.`;
       },
     });
 
-    // Parse the subredditData back to JSON
     return ideas;
   }
 }
