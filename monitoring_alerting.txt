@@ -1,0 +1,47 @@
+Application Health Monitoring:
+
+API response times
+Error rates and types
+Request volume
+Server resource usage (CPU, memory, disk)
+
+
+Data Source Monitoring (Reddit):
+
+Scraping success/failure rates
+Data freshness
+API rate limits
+Connection issues
+
+
+LLM Integration Monitoring:
+
+API response times
+Error rates
+Token usage
+Cost tracking
+Response quality metrics
+
+
+Logging Best Practices:
+
+Structured logging with timestamps
+Different log levels (INFO, WARNING, ERROR)
+Separate files for different types of logs
+Log rotation to manage storage
+
+
+Alerting System:
+
+Configurable thresholds
+Multiple notification channels (email, Slack, etc.)
+Alert severity levels
+Alert aggregation to prevent flooding
+
+
+Performance Metrics:
+
+Response time percentiles (p95, p99)
+Resource utilization trends
+Throughput measurements
+Database performance (if applicable)

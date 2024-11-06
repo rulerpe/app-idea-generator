@@ -29,4 +29,7 @@ export const validationSchema = Joi.object({
     otherwise: Joi.optional(),
   }),
   ANTHROPIC_API_KEY: Joi.string().required(),
+  // Monitoring configuration
+  GCP_PROJECT_ID: Joi.string().required(),
+  MONITORING_ENABLED: Joi.boolean().default(true),
 });
