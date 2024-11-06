@@ -45,8 +45,9 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
 
       try {
         const request = {
-          name: metricType,
+          name: `projects/${this.projectId}`,
           metricDescriptor: {
+            name: `projects/${this.projectId}/metricDescriptors/${metricType}`,
             description: `Custom metric for ${value}`,
             displayName: value,
             type: metricType,
@@ -67,6 +68,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
       } catch (error) {
         // Ignore if metric already exists
         if (!error.message?.includes('ALREADY_EXISTS')) {
+          console.error('Error creating metric descriptor:', error);
           throw error;
         }
       }

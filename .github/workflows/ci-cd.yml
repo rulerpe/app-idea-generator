@@ -73,5 +73,6 @@ jobs:
             CLOUD_SQL_CONNECTION_NAME=${{ secrets.CLOUD_SQL_CONNECTION_NAME }}
             ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
             GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+            MONITORING_ENABLED=true
           flags: |
             --add-cloudsql-instances=${{ secrets.CLOUD_SQL_CONNECTION_NAME }}
