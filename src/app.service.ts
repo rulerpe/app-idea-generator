@@ -12,6 +12,7 @@ export class AppService {
   private readonly anthropic: Anthropic;
   private readonly MAX_TEXT_LENGTH = 300;
   private readonly MAX_COMMENT_LENGTH = 200;
+  private readonly REQUEST_DELAY = 2000; // 2 seconds delay between requests
 
   private readonly subredditsByGenre = {
     technology: [
@@ -94,9 +95,9 @@ export class AppService {
     // Get all genres
     const genres = Object.keys(this.subredditsByGenre);
 
-    // Randomly select 3 different genres
+    // Randomly select 2 different genres
     const selectedGenres = [];
-    while (selectedGenres.length < 3) {
+    while (selectedGenres.length < 2) {
       const randomGenre = genres[Math.floor(Math.random() * genres.length)];
       if (!selectedGenres.includes(randomGenre)) {
         selectedGenres.push(randomGenre);
@@ -116,8 +117,16 @@ export class AppService {
     return text.substring(0, maxLength) + '...';
   }
 
+  private async delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   private async getTopComment(permalink: string): Promise<any> {
     try {
+      console.log(`Requesting comment: ${permalink}`);
+      // Add delay before making the request
+      await this.delay(this.REQUEST_DELAY);
+
       const response = await firstValueFrom(
         this.httpService.get(`https://www.reddit.com${permalink}.json`),
       );
@@ -129,6 +138,12 @@ export class AppService {
         score: comments[0].data.score,
       };
     } catch (error) {
+      if (error.response?.status === 429) {
+        console.log(
+          `Rate limited when fetching comments for ${permalink}, skipping comments`,
+        );
+        return null;
+      }
       console.error(
         `Error fetching comments for post ${permalink}:`,
         error.message,
@@ -143,15 +158,21 @@ export class AppService {
 
     for (const subreddit of selectedSubreddits) {
       try {
+        console.log(`Requesting subreddit: ${subreddit}`);
+        // Add delay before making the request
+        await this.delay(this.REQUEST_DELAY);
+
         const response = await firstValueFrom(
           this.httpService.get(
-            `https://www.reddit.com/r/${subreddit}/top.json?limit=20&t=month`,
+            `https://www.reddit.com/r/${subreddit}/top.json?limit=5&t=month`,
           ),
         );
 
         for (const child of response.data.data.children) {
-          const topComment = await this.getTopComment(child.data.permalink);
           if (child.data.selftext !== '') {
+            // Only fetch comments if we haven't hit rate limits recently
+            const topComment = await this.getTopComment(child.data.permalink);
+
             allTopics.push({
               title: child.data.title,
               subreddit: child.data.subreddit,
@@ -165,6 +186,12 @@ export class AppService {
           }
         }
       } catch (error) {
+        if (error.response?.status === 429) {
+          console.log(
+            `Rate limited when fetching subreddit ${subreddit}, trying next subreddit`,
+          );
+          continue;
+        }
         console.error(`Error fetching from r/${subreddit}:`, error.message);
       }
     }
@@ -176,42 +203,88 @@ export class AppService {
     ];
   }
 
-  async generateIdeas(): Promise<void> {
-    const [topics, selectedSubreddits] = await this.getRedditTopics();
+  private convertTechStackToArray(techStack: any): string[] {
+    if (Array.isArray(techStack)) {
+      return techStack;
+    }
 
-    const prompt = `Based on these current trending topics from Reddit:
+    // If techStack is an object, convert it to array of strings
+    if (typeof techStack === 'object' && techStack !== null) {
+      return Object.entries(techStack)
+        .map(([key, value]) => {
+          if (Array.isArray(value)) {
+            return value.map((v) => `${key}: ${v}`);
+          }
+          return `${key}: ${value}`;
+        })
+        .flat();
+    }
+
+    return [];
+  }
+
+  async generateIdeas(): Promise<void> {
+    // Generate 10 different ideas, each based on different subreddits
+    for (let i = 0; i < 5; i++) {
+      try {
+        const [topics, selectedSubreddits] = await this.getRedditTopics();
+
+        // If we couldn't get any topics, skip this iteration
+        if (topics.length === 0) {
+          console.log(`No topics found for iteration ${i + 1}, skipping`);
+          continue;
+        }
+        console.log('Generate Idea from ', selectedSubreddits);
+        const prompt = `Based on these current trending topics from Reddit:
 ${topics.map((t) => `- ${t.title}\n ${t.selftext} (from r/${t.subreddit})\n  Top comment: "${t.topComment?.text || 'No comments'}" with ${t.topComment?.score || 0} upvotes`).join('\n')}
 
-Generate 10 unique and innovative web application ideas that solve real problems or address interesting opportunities. For each idea, provide:
-1. A clear title
-2. A brief description of the concept
+Generate 1 unique and innovative web application idea that solves a real problem or addresses an interesting opportunity based on these topics. Meets these criteria:
+Requirements:
+      1. Can be built as MVP in 2-4 weeks by a single developer
+      2. Uses common tech stack (React, Node.js, basic DB)
+      3. Has clear monetization potential
+      4. Starts simple but can scale
+      5. Solves a specific problem
 
-Format each idea as a JSON object with "title", "description" fields. example [{"title": "ideatitle1", "description": "ideadescription"}]`;
+      Provide:
+      1. Title: Clear, concise name
+      2. Description: 2-3 sentences explaining core functionality
+      3. MVP Features: 3-4 core features for first release
+      4. Tech Stack: List of technologies needed (as array of strings)
+      5. Complexity Score: 1-5 (1 being simplest)
+      
+      Format as JSON object.`;
+        const completion = await this.anthropic.messages.create({
+          model: 'claude-3-5-sonnet-latest',
+          max_tokens: 1500,
+          messages: [{ role: 'user', content: prompt }],
+        });
 
-    try {
-      const completion = await this.anthropic.messages.create({
-        model: 'claude-3-5-sonnet-latest',
-        max_tokens: 1500,
-        messages: [{ role: 'user', content: prompt }],
-      });
+        const ideasText =
+          completion.content[0].type === 'text'
+            ? completion.content[0].text
+            : '';
+        const idea = JSON.parse(ideasText);
 
-      const ideasText =
-        completion.content[0].type === 'text' ? completion.content[0].text : '';
-      const ideas = JSON.parse(ideasText);
-
-      for (const idea of ideas) {
         // Create a new AppIdea instance
         const appIdea = new AppIdea();
         appIdea.title = idea.title;
         appIdea.description = idea.description;
         appIdea.subreddits = selectedSubreddits;
+        appIdea.mvpFeatures = idea.mvpFeatures;
+        appIdea.techStack = this.convertTechStackToArray(idea.techStack);
+        appIdea.complexityScore = idea.complexityScore;
 
         // Save the entity
         await this.appIdeaRepository.save(appIdea);
+
+        // Add delay between iterations
+        await this.delay(this.REQUEST_DELAY);
+      } catch (error) {
+        console.error(`Error in iteration ${i + 1}:`, error);
+        // Continue with next iteration instead of throwing
+        continue;
       }
-    } catch (error) {
-      console.error('Error generating ideas:', error);
-      throw error;
     }
   }
 

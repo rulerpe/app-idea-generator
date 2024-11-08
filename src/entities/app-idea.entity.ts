@@ -19,6 +19,15 @@ export class AppIdea {
   @Column('text', { array: true, default: '{}' })
   subreddits: string[];
 
+  @Column('text', { array: true, default: '{}' })
+  mvpFeatures: string[];
+
+  @Column('text', { array: true, default: '{}' })
+  techStack: string[];
+
+  @Column('int', { default: 1 })
+  complexityScore: number;
+
   @CreateDateColumn()
   createdAt: Date;
 }
