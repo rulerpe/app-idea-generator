@@ -1,18 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { firstValueFrom } from 'rxjs';
-import { AppIdea } from './entities/app-idea.entity';
-import { ConfigService } from '@nestjs/config';
+import { FirestoreService } from './services/firestore.service';
+import { AppIdea } from './interfaces/app-idea.interface';
 
 @Injectable()
 export class AppService {
   private readonly anthropic: Anthropic;
   private readonly MAX_TEXT_LENGTH = 300;
   private readonly MAX_COMMENT_LENGTH = 200;
-  private readonly REQUEST_DELAY = 2000; // 2 seconds delay between requests
+  private readonly REQUEST_DELAY = 2000;
 
   private readonly subredditsByGenre = {
     technology: [
@@ -83,8 +82,7 @@ export class AppService {
   constructor(
     private configService: ConfigService,
     private readonly httpService: HttpService,
-    @InjectRepository(AppIdea)
-    private appIdeaRepository: Repository<AppIdea>,
+    private readonly firestoreService: FirestoreService,
   ) {
     this.anthropic = new Anthropic({
       apiKey: this.configService.get<string>('api.anthropic.key'),
@@ -203,98 +201,96 @@ export class AppService {
     ];
   }
 
-  private convertTechStackToArray(techStack: any): string[] {
-    if (Array.isArray(techStack)) {
-      return techStack;
-    }
-
-    // If techStack is an object, convert it to array of strings
-    if (typeof techStack === 'object' && techStack !== null) {
-      return Object.entries(techStack)
-        .map(([key, value]) => {
-          if (Array.isArray(value)) {
-            return value.map((v) => `${key}: ${v}`);
-          }
-          return `${key}: ${value}`;
-        })
-        .flat();
-    }
-
-    return [];
-  }
-
   async generateIdeas(): Promise<void> {
-    // Generate 10 different ideas, each based on different subreddits
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 1; i++) {
       try {
         const [topics, selectedSubreddits] = await this.getRedditTopics();
 
-        // If we couldn't get any topics, skip this iteration
         if (topics.length === 0) {
           console.log(`No topics found for iteration ${i + 1}, skipping`);
           continue;
         }
+
         console.log('Generate Idea from ', selectedSubreddits);
         const prompt = `Based on these current trending topics from Reddit:
-${topics.map((t) => `- ${t.title}\n ${t.selftext} (from r/${t.subreddit})\n  Top comment: "${t.topComment?.text || 'No comments'}" with ${t.topComment?.score || 0} upvotes`).join('\n')}
+${topics
+  .map(
+    (t) =>
+      `- ${t.title}\n ${t.selftext} (from r/${t.subreddit})\n  Top comment: "${
+        t.topComment?.text || 'No comments'
+      }" with ${t.topComment?.score || 0} upvotes`,
+  )
+  .join('\n')}
 
-Generate 1 unique and innovative web application idea that solves a real problem or addresses an interesting opportunity based on these topics. Meets these criteria:
+Generate 1 unique and innovative web application idea that solves a real problem or addresses an interesting opportunity based on these topics. The idea should be practical and implementable.
+
 Requirements:
-      1. Can be built as MVP in 2-4 weeks by a single developer
-      2. Uses common tech stack (React, Node.js, basic DB)
-      3. Has clear monetization potential
-      4. Starts simple but can scale
-      5. Solves a specific problem
+1. Can be built as MVP in 1-2 weeks by a single developer
+2. Uses common tech stack (React, Node.js, basic DB)
+3. Has clear monetization potential
+4. Starts simple but can scale
+5. Solves a specific problem
 
-      Provide:
-      1. Title: Clear, concise name
-      2. Description: 2-3 sentences explaining core functionality
-      3. MVP Features: 3-4 core features for first release
-      4. Tech Stack: List of technologies needed (as array of strings)
-      5. Complexity Score: 1-5 (1 being simplest)
-      
-      Format as JSON object.`;
+Response in JSON format as below:
+{
+  "title": "Brief but descriptive app name",
+  "description": "A comprehensive 2-3 sentence overview of the application, its core functionality, and its value proposition",
+  "mvpFeatures": [
+    "List of 3-5 essential features for MVP, each described in detail with clear acceptance criteria"
+  ],
+  "techStack": [
+    "Frontend: Required frontend technologies (e.g., React, Redux, TailwindCSS)",
+    "Backend: Required backend technologies (e.g., Node.js, Express)",
+    "Database: Database requirements (e.g., PostgreSQL, MongoDB)",
+    "APIs: Required external APIs or services"
+  ]
+}`;
+
         const completion = await this.anthropic.messages.create({
           model: 'claude-3-5-sonnet-latest',
           max_tokens: 1500,
           messages: [{ role: 'user', content: prompt }],
         });
 
-        const ideasText =
-          completion.content[0].type === 'text'
-            ? completion.content[0].text
-            : '';
+        const ideasText = completion.content[0].type === 'text' 
+          ? completion.content[0].text 
+          : '';
         const idea = JSON.parse(ideasText);
 
-        // Create a new AppIdea instance
-        const appIdea = new AppIdea();
-        appIdea.title = idea.title;
-        appIdea.description = idea.description;
-        appIdea.subreddits = selectedSubreddits;
-        appIdea.mvpFeatures = idea.mvpFeatures;
-        appIdea.techStack = this.convertTechStackToArray(idea.techStack);
-        appIdea.complexityScore = idea.complexityScore;
+        // Create a new AppIdea document
+        const appIdea: AppIdea = {
+          title: idea.title,
+          description: idea.description,
+          subreddits: selectedSubreddits,
+          mvpFeatures: idea.mvpFeatures,
+          techStack: Array.isArray(idea.techStack)
+            ? idea.techStack
+            : Object.entries(idea.techStack).map(([key, value]) => `${key}: ${value}`),
+          createdAt: new Date(),
+        };
 
-        // Save the entity
-        await this.appIdeaRepository.save(appIdea);
+        // Save to Firestore
+        await this.firestoreService
+          .collection('app-ideas')
+          .add(appIdea);
 
-        // Add delay between iterations
         await this.delay(this.REQUEST_DELAY);
       } catch (error) {
         console.error(`Error in iteration ${i + 1}:`, error);
-        // Continue with next iteration instead of throwing
         continue;
       }
     }
   }
 
-  async getStoredIdeas() {
-    const ideas = await this.appIdeaRepository.find({
-      order: {
-        createdAt: 'DESC',
-      },
-    });
+  async getStoredIdeas(): Promise<AppIdea[]> {
+    const snapshot = await this.firestoreService
+      .collection('app-ideas')
+      .orderBy('createdAt', 'desc')
+      .get();
 
-    return ideas;
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as AppIdea[];
   }
 }
