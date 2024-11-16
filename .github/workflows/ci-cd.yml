@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  PROJECT_ID: app-idea-generator-440521
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GAR_LOCATION: us-central1
   SERVICE: app-idea-generator
   REGION: us-central1
