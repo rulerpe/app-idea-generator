@@ -252,9 +252,10 @@ Response in JSON format as below:
           messages: [{ role: 'user', content: prompt }],
         });
 
-        const ideasText = completion.content[0].type === 'text' 
-          ? completion.content[0].text 
-          : '';
+        const ideasText =
+          completion.content[0].type === 'text'
+            ? completion.content[0].text
+            : '';
         const idea = JSON.parse(ideasText);
 
         // Create a new AppIdea document
@@ -265,14 +266,14 @@ Response in JSON format as below:
           mvpFeatures: idea.mvpFeatures,
           techStack: Array.isArray(idea.techStack)
             ? idea.techStack
-            : Object.entries(idea.techStack).map(([key, value]) => `${key}: ${value}`),
+            : Object.entries(idea.techStack).map(
+                ([key, value]) => `${key}: ${value}`,
+              ),
           createdAt: new Date(),
         };
 
         // Save to Firestore
-        await this.firestoreService
-          .collection('app-ideas')
-          .add(appIdea);
+        await this.firestoreService.collection('app-ideas').add(appIdea);
 
         await this.delay(this.REQUEST_DELAY);
       } catch (error) {
@@ -288,7 +289,7 @@ Response in JSON format as below:
       .orderBy('createdAt', 'desc')
       .get();
 
-    return snapshot.docs.map(doc => ({
+    return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as AppIdea[];
