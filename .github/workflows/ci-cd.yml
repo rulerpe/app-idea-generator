@@ -65,11 +65,11 @@ jobs:
         with:
           service: ${{ env.SERVICE }}
           region: ${{ env.REGION }}
-          project_id: app-idea-generator-440521
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
           image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }}
-          env_vars: |
-            NODE_ENV=production
-            ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
-            GCP_PROJECT_ID=app-idea-generator-440521
-            MONITORING_ENABLED=true
+          env_vars: |-
+            NODE_ENV=production,
+            ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }},
+            GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},
+            MONITORING_ENABLED=true,
             GOOGLE_APPLICATION_CREDENTIALS_JSON=${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
