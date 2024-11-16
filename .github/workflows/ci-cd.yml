@@ -65,7 +65,7 @@ jobs:
         with:
           service: ${{ env.SERVICE }}
           region: ${{ env.REGION }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          project_id: app-idea-generator-440521
           image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }}
           env_vars: |
             NODE_ENV=production
