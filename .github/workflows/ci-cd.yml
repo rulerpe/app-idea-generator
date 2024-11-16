@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: app-idea-generator-440521
   GAR_LOCATION: us-central1
   SERVICE: app-idea-generator
   REGION: us-central1
@@ -70,6 +70,6 @@ jobs:
           env_vars: |
             NODE_ENV=production
             ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
-            GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+            GCP_PROJECT_ID=app-idea-generator-440521
             MONITORING_ENABLED=true
             GOOGLE_APPLICATION_CREDENTIALS_JSON=${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
