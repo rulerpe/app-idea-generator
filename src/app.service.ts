@@ -239,9 +239,9 @@ Response in JSON format as below:
     "List of 3-5 essential features for MVP, each described in detail with clear acceptance criteria"
   ],
   "techStack": [
-    "Frontend: Required frontend technologies (e.g., React, Redux, TailwindCSS)",
-    "Backend: Required backend technologies (e.g., Node.js, Express)",
-    "Database: Database requirements (e.g., PostgreSQL, MongoDB)",
+    "Frontend: Nextjs",
+    "Backend(Optional): Nextjs backend or cloud function",
+    "Database: firestore",
     "APIs: Required external APIs or services"
   ]
 }`;
